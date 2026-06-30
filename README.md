@@ -11,6 +11,7 @@ Multi-input regression model for pediatric bone age estimation. Supports multipl
 ├── metrics.py          # Evaluation and CSV export
 ├── train.py            # Training loop entry point
 ├── run_training.sh     # Runs all 10 seeds for one backbone
+├── bnn/                # Bayesian Neural Network implementation
 ├── tests/
 │   └── test_smoke.py
 ├── .env                # DATA_DIR, OUTPUT_DIR
@@ -83,6 +84,12 @@ python train.py --backbone vit_b_16 --seed 3
 python train.py --backbone convnextv2_tiny --seed 0 --quick-test
 ```
 
+### Run BNN with Uncertainty Quantification
+
+```bash
+cd bnn && bash run_bnn.sh --backbone efficientnet_b3 --n-passes 60
+```
+
 ## Output Structure
 
 ```
@@ -96,6 +103,15 @@ OUTPUT_DIR/
         ├── val_metrics_<TS>.csv              # Val set: MAE, RMSE, R², etc.
         ├── test_predictions_<TS>.csv         # Test set predictions
         └── test_metrics_<TS>.csv             # Test set metrics
+
+bnn/results/
+└── <backbone>/
+    └── seed<N>_<timestamp>/
+        ├── best_model.pth                    # Best checkpoint
+        ├── history.pkl                       # Per-epoch losses (including KL)
+        ├── val_predictions_<TS>.csv          # Val set: true vs predicted mean age
+        ├── val_uq_predictions_<TS>.csv       # Val UQ predictions (mean, std, intervals)
+        └── val_uq_metrics_<TS>.csv           # Val UQ metrics (PICP, MPIW, etc.)
 ```
 
 ### `history.pkl`

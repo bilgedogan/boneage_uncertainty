@@ -19,6 +19,7 @@ htmlcov/
 # Project specific
 outputs/
 data/
+bnn/results/
 
 # Notebooks (if any get added by mistake)
 .ipynb_checkpoints/

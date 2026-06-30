@@ -2,6 +2,17 @@
 *****************************************************
 * Author: Nadide Bilge Dogan                        *
 * Date: 30.06.2026                                  *
+* Version: 5.0.0                                    *
+* Branch: main                                      *
+* Development:                                      *
+* - Bayesian Neural Network (BNN) implementation    *
+*   added for uncertainty quantification.           *
+*****************************************************
+"""
+"""
+*****************************************************
+* Author: Nadide Bilge Dogan                        *
+* Date: 30.06.2026                                  *
 * Version: 4.0.0                                    *
 * Branch: main                                      *
 * Development:                                      *
