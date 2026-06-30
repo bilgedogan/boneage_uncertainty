@@ -27,7 +27,7 @@ def main():
     sample_frac = 0.01 if args.quick_test else 1.0
     epochs = 2 if args.quick_test else args.epochs
     backbone_name = args.backbone
-    run_name = f"seed{args.seed}" + ("_quicktest" if args.quick_test else "")
+    run_name = f"seed_{args.seed:02d}" + ("_quicktest" if args.quick_test else "")
 
     # All outputs for this run live under OUTPUT_DIR/<run_name>/
     run_dir = OUTPUT_DIR / backbone_name / run_name

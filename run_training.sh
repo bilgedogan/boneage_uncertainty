@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs the training process for multiple seeds.
-# efficientnet_b3, vit_b16, convnext_tiny
+# efficientnet_b3, vit_b_16, convnextv2_tiny
 
 BACKBONE="efficientnet_b3"
 SEEDS=(0 1 2 3 4 5 6 7 8 9)

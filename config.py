@@ -15,8 +15,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Training configurations
 IMG_SIZE = {"efficientnet_b3": (300, 300), 
-            "vit_b16": (224, 224),
-            "convnext_tiny": (300, 300)}
+            "vit_b_16": (224, 224),
+            "convnextv2_tiny": (300, 300)}
 BATCH_SIZE = 32
 
 # Ensure we deal with absolute paths if they are relative

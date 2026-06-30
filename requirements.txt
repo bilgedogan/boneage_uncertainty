@@ -3,6 +3,7 @@ pandas
 matplotlib
 seaborn
 Pillow
+openpyxl
 --index-url https://download.pytorch.org/whl/cu121
 torch==2.5.1+cu121
 torchvision==0.20.1+cu121
@@ -10,3 +11,4 @@ tqdm
 scikit-learn
 python-dotenv
 pytest
+timm
