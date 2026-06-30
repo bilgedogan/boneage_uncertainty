@@ -2,6 +2,16 @@
 *****************************************************
 * Author: Nadide Bilge Dogan                        *
 * Date: 30.06.2026                                  *
+* Version: 4.0.0                                    *
+* Branch: main                                      *
+* Development:                                      *
+* - Split and knn conformalprediction are added.    *
+*****************************************************
+"""
+"""
+*****************************************************
+* Author: Nadide Bilge Dogan                        *
+* Date: 30.06.2026                                  *
 * Version: 3.0.0                                    *
 * Branch: main                                      *
 * Development:                                      *

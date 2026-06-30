@@ -6,6 +6,20 @@ from torchvision.models import (
     vit_b_16, ViT_B_16_Weights,
 )
 
+class _TimmBackbone(nn.Module):
+    """Wraps a timm model: raw conv features -> global avg pool -> flatten.
+    Matches the training-time forward path, which bypasses timm's own head.norm."""
+    def __init__(self, name, pretrained=True):
+        super().__init__()
+        self.model = timm.create_model(name, pretrained=pretrained, num_classes=0)
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, x):
+        feats = self.model.forward_features(x)
+        feats = self.pool(feats)
+        feats = torch.flatten(feats, 1)
+        return feats
+
 
 class MultiInputModel(nn.Module):
     def __init__(self, dropout=0.5,name="efficientnet_b3"):
@@ -21,11 +35,8 @@ class MultiInputModel(nn.Module):
             num_ftrs = backbone.heads.head.in_features  # 768
             backbone.heads = nn.Identity()
         elif name == "convnextv2_tiny":
-            inner = timm.create_model('convnextv2_tiny', pretrained=True, num_classes=0)
-            backbone = nn.Module()
-            backbone.model = inner          # checkpoint keys are "base_model.model.*"
-            backbone.forward = inner.forward
-            num_ftrs = inner.num_features
+            backbone = _TimmBackbone("convnextv2_tiny", pretrained=True)
+            num_ftrs = backbone.model.num_features
         else:
             raise ValueError(f"Unknown backbone: {name!r}")
 
