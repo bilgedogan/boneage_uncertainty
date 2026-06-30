@@ -21,6 +21,7 @@ from data_loader import load_data, build_val_or_test_loader
 from config import OUTPUT_DIR
 from uq_metrics import compute_metrics
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
 from crepes import ConformalRegressor
 from crepes.extras import DifficultyEstimator
 
@@ -97,6 +98,41 @@ def conformalize_knn(calib_preds, calib_targets, calib_emb, test_preds, test_emb
     }
 
 
+def conformalize_rf(
+    calib_preds,
+    calib_targets,
+    calib_emb,
+    test_preds,
+    test_emb,
+    coverage_levels,
+    n_estimators,
+    min_samples_leaf,
+    random_state,
+):
+    """Normalized split conformal prediction with RF difficulty estimates."""
+    residuals_calib = calib_targets - calib_preds
+    abs_residuals = np.abs(residuals_calib)
+
+    rf = RandomForestRegressor(
+        n_estimators=n_estimators,
+        min_samples_leaf=min_samples_leaf,
+        random_state=random_state,
+        n_jobs=-1,
+    )
+    rf.fit(calib_emb, abs_residuals)
+
+    sigmas_calib = np.maximum(rf.predict(calib_emb), 1e-6)
+    sigmas_test = np.maximum(rf.predict(test_emb), 1e-6)
+
+    cr = ConformalRegressor()
+    cr.fit(residuals_calib, sigmas=sigmas_calib)
+
+    return {
+        cov: cr.predict_int(test_preds, sigmas=sigmas_test, confidence=cov)
+        for cov in coverage_levels
+    }
+
+
 def evaluate(backbone, seed, n_calib, elapsed, df, test_preds, test_targets,
              methods_intervals, coverage_levels):
     pred_df = df[["id", "boneage", "male"]].copy().reset_index(drop=True)
@@ -107,7 +143,7 @@ def evaluate(backbone, seed, n_calib, elapsed, df, test_preds, test_targets,
         mae = mean_absolute_error(test_preds, test_targets)
         mse = mean_squared_error(test_preds, test_targets)
         rmse = np.sqrt(mse)
-        r2 = r2_score(test_preds, test_targets)
+        r2 = r2_score(test_targets, test_preds)
 
         metrics = {
             "backbone":         backbone,
@@ -146,7 +182,7 @@ def evaluate(backbone, seed, n_calib, elapsed, df, test_preds, test_targets,
 
 
 def run_cp(backbone: str, seed: int):
-    checkpoint = OUTPUT_DIR / backbone / f"seed_{seed:02d}" / "model_best.pt"
+    checkpoint = OUTPUT_DIR / backbone / f"seed_{seed:02d}" / "best_model.pth"
     if not checkpoint.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
 
@@ -160,7 +196,7 @@ def run_cp(backbone: str, seed: int):
     print(f"{len(calib_df)} calib | {len(test_df)} test | max_age={max_age:.0f} months")
 
     model = build_multi_input_model(name=backbone)
-    model.load_state_dict(torch.load(checkpoint, map_location=device))
+    model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
     model.to(device)
 
     print("  Running point-prediction forward passes...")
@@ -182,10 +218,15 @@ def main():
                         choices=["efficientnet_b3", "vit_b_16", "convnextv2_tiny"])
     parser.add_argument("--seed",      type=int, default=0)
     parser.add_argument("--knn-k",     type=int, default=25)
+    parser.add_argument("--rf-trees",  type=int, default=200)
+    parser.add_argument("--rf-min-leaf", type=int, default=5)
     parser.add_argument("--coverage",  type=ast.literal_eval, default=[0.90, 0.95, 0.99])
     args = parser.parse_args()
 
-    print(f"\n[CP] backbone={args.backbone}  seed={args.seed}  knn_k={args.knn_k}")
+    print(
+        f"\n[CP] backbone={args.backbone} seed={args.seed} "
+        f"knn_k={args.knn_k} rf_trees={args.rf_trees}"
+    )
 
     (calib_preds, calib_targets, calib_emb,
      test_preds, test_targets, test_emb, df, elapsed) = run_cp(args.backbone, args.seed)
@@ -193,11 +234,22 @@ def main():
     split_intervals = conformalize_split(calib_preds, calib_targets, test_preds, args.coverage)
     knn_intervals = conformalize_knn(calib_preds, calib_targets, calib_emb, test_preds, test_emb,
                                       args.coverage, args.knn_k)
+    rf_intervals = conformalize_rf(
+        calib_preds,
+        calib_targets,
+        calib_emb,
+        test_preds,
+        test_emb,
+        args.coverage,
+        args.rf_trees,
+        args.rf_min_leaf,
+        args.seed,
+    )
 
     evaluate(
         args.backbone, args.seed, len(calib_targets), elapsed, df,
         test_preds, test_targets,
-        {"split": split_intervals, "knn": knn_intervals},
+        {"split": split_intervals, "knn": knn_intervals, "rf": rf_intervals},
         args.coverage,
     )
 

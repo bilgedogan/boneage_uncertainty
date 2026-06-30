@@ -2,6 +2,16 @@
 *****************************************************
 * Author: Fuat Işıklan                              *
 * Date: 30.06.2026                                  *
+* Version: 6.0.1                                    *
+* Branch: main                                      *
+* Development:                                      *
+* - Random Forest added in cp.                      *
+*****************************************************
+"""
+"""
+*****************************************************
+* Author: Fuat Işıklan                              *
+* Date: 30.06.2026                                  *
 * Version: 6.0.0                                    *
 * Branch: main                                      *
 * Development:                                      *
