@@ -182,7 +182,7 @@ def evaluate(backbone, seed, n_calib, elapsed, df, test_preds, test_targets,
 
 
 def run_cp(backbone: str, seed: int):
-    checkpoint = OUTPUT_DIR / backbone / f"seed_{seed:02d}" / "best_model.pth"
+    checkpoint = OUTPUT_DIR / backbone / f"seed_{seed:02d}" / "model_best.pt"
     if not checkpoint.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
 
