@@ -91,7 +91,11 @@ def evaluate(preds, targets, backbone, seed, n_passes, elapsed,coverage,df):
         "inference_time_s": elapsed,
     }
     for cov in coverage:
-        picp, mpiw, pinaw, cwc = compute_metrics(means, stds, targets, cov)
+        z_score = coverage_dict[cov]
+
+        lower = means - z_score * stds
+        upper = means + z_score * stds  
+        picp, mpiw, pinaw, cwc = compute_metrics(lower, upper, targets, cov)
         metrics[f"picp_{int(cov*100)}"] = picp
         metrics[f"mpiw_{int(cov*100)}"] = mpiw
         metrics[f"pinaw_{int(cov*100)}"] = pinaw
