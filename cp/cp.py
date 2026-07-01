@@ -109,20 +109,22 @@ def conformalize_rf(
     min_samples_leaf,
     random_state,
 ):
-    """Normalized split conformal prediction with RF difficulty estimates."""
+    """Normalized split conformal prediction with RF variance difficulty."""
     residuals_calib = calib_targets - calib_preds
-    abs_residuals = np.abs(residuals_calib)
 
     rf = RandomForestRegressor(
         n_estimators=n_estimators,
         min_samples_leaf=min_samples_leaf,
         random_state=random_state,
+        bootstrap=True,
         n_jobs=-1,
     )
-    rf.fit(calib_emb, abs_residuals)
+    rf.fit(calib_emb, calib_targets)
 
-    sigmas_calib = np.maximum(rf.predict(calib_emb), 1e-6)
-    sigmas_test = np.maximum(rf.predict(test_emb), 1e-6)
+    de = DifficultyEstimator()
+    de.fit(X=calib_emb, learner=rf, scaler=True, oob=True)
+    sigmas_calib = de.apply()
+    sigmas_test = de.apply(test_emb)
 
     cr = ConformalRegressor()
     cr.fit(residuals_calib, sigmas=sigmas_calib)
@@ -256,3 +258,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

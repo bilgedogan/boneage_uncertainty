@@ -1,5 +1,15 @@
 """
 *****************************************************
+* Author: Fuat Işıklan                              *
+* Date: 30.06.2026                                  *
+* Version: 7.0.1                                    *
+* Branch: main                                      *
+* Development:                                      *
+* - Random Forest corrected with tree var as sigma. *
+*****************************************************
+"""
+"""
+*****************************************************
 * Author: Mümin Emir Soydal                         *
 * Date: 01.07.2026                                  *
 * Version: 7.0.0                                    *
