@@ -1,3 +1,14 @@
+"""Bayesian Neural Network model for bone age regression.
+
+The backbone (EfficientNet-B3 / ViT-B/16 / ConvNeXtV2-Tiny) stays a deterministic
+fine-tuned feature extractor; only the regression head (fc1 + out) is turned into
+Bayesian variational layers using Intel Labs' ``bayesian-torch`` library
+(``dnn_to_bnn`` with mean-field Reparameterization layers).
+
+This mirrors the point-prediction ``MultiInputModel`` in the project root
+(../model.py) so results stay comparable across UQ methods.
+"""
+
 import torch
 import torch.nn as nn
 import timm
@@ -5,7 +16,26 @@ from torchvision.models import (
     efficientnet_b3, EfficientNet_B3_Weights,
     vit_b_16, ViT_B_16_Weights,
 )
-from bnn_layer import BayesianLinear
+from bayesian_torch.models.dnn_to_bnn import dnn_to_bnn, get_kl_loss
+
+
+def make_prior_parameters(prior_sigma=1.0):
+    """Return the ``const_bnn_prior_parameters`` dict expected by ``dnn_to_bnn``.
+
+    Mean-field Gaussian prior N(prior_mu, prior_sigma^2), Reparameterization
+    variational posterior. MOPED is disabled so the posterior is initialised
+    from scratch rather than from pretrained weights.
+    """
+    return {
+        "prior_mu": 0.0,
+        "prior_sigma": prior_sigma,
+        "posterior_mu_init": 0.0,
+        "posterior_rho_init": -3.0,
+        "type": "Reparameterization",
+        "moped_enable": False,
+        "moped_delta": 0.5,
+    }
+
 
 class _TimmBackbone(nn.Module):
     """Wraps a timm model: raw conv features -> global avg pool -> flatten.
@@ -21,11 +51,33 @@ class _TimmBackbone(nn.Module):
         feats = torch.flatten(feats, 1)
         return feats
 
+
+class _BayesianHead(nn.Module):
+    """The regression head whose linear layers become Bayesian after conversion.
+
+    Kept as its own module so ``dnn_to_bnn`` only converts fc1 and out, leaving
+    the backbone and sex branch deterministic.
+    """
+    def __init__(self, in_features, dropout=0.5):
+        super().__init__()
+        self.fc1 = nn.Linear(in_features, 256)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(256, 1)
+
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        x = self.dropout(x)
+        return self.out(x)
+
+
 class BNNMultiInputModel(nn.Module):
+    """Image + sex -> bone age, with a Bayesian regression head."""
+
     def __init__(self, dropout=0.5, name="efficientnet_b3", prior_sigma=1.0):
         super().__init__()
-        
-        # Load pre-trained backbones
+
+        # Load pre-trained backbone (deterministic feature extractor)
         if name == "efficientnet_b3":
             backbone = efficientnet_b3(weights=EfficientNet_B3_Weights.IMAGENET1K_V1)
             num_ftrs = backbone.classifier[1].in_features
@@ -42,44 +94,25 @@ class BNNMultiInputModel(nn.Module):
 
         self.base_model = backbone
 
-        # Dense layer for sex input
-        self.sex_fc = BayesianLinear(1, 32, prior_sigma=prior_sigma)
-
-        # Build the new head: feature + 32 (for processed sex_input)
-        self.fc1 = BayesianLinear(num_ftrs + 32, 256, prior_sigma=prior_sigma)
-        self.dropout = nn.Dropout(dropout)
+        # Deterministic dense layer for the sex input
+        self.sex_fc = nn.Linear(1, 32)
         self.relu = nn.ReLU()
-        self.out = BayesianLinear(256, 1, prior_sigma=prior_sigma)
 
-    def forward(self, img, sex, sample=True):
-        # Extract features (B, num_ftrs)
+        # Bayesian head over [backbone features | processed sex]
+        self.head = _BayesianHead(num_ftrs + 32, dropout=dropout)
+        dnn_to_bnn(self.head, make_prior_parameters(prior_sigma))
+
+    def forward(self, img, sex):
         feat = self.base_model(img)
-
-        # Process sex through dense layer
-        sex = self.relu(self.sex_fc(sex, sample=sample))
-
-        # Concatenate features with processed sex
+        sex = self.relu(self.sex_fc(sex))
         x = torch.cat((feat, sex), dim=1)
-        
-        # FC layers
-        x = self.relu(self.fc1(x, sample=sample))
-        x = self.dropout(x)
-        out = self.out(x, sample=sample)
-        
-        return out
-        
-    def kl_divergence(self):
-        kl = 0.0
-        for module in self.modules():
-            if isinstance(module, BayesianLinear):
-                kl += module.kl_divergence()
-        return kl
+        return self.head(x)
 
-def build_multi_input_model(dropout=0.5, learning_rate=1e-4, name="efficientnet_b3", prior_sigma=1.0):
-    """
-    Returns the PyTorch multi-input model with Bayesian layers.
-    Note: learning_rate is handled in the optimizer in PyTorch,
-    but we keep the signature compatible.
-    """
-    model = BNNMultiInputModel(dropout=dropout, name=name, prior_sigma=prior_sigma)
-    return model
+    def kl_loss(self):
+        """Total KL divergence of the Bayesian head (backbone contributes 0)."""
+        return get_kl_loss(self.head)
+
+
+def build_bnn_model(dropout=0.5, name="efficientnet_b3", prior_sigma=1.0):
+    """Factory for the Bayesian multi-input model."""
+    return BNNMultiInputModel(dropout=dropout, name=name, prior_sigma=prior_sigma)

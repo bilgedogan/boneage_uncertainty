@@ -1,5 +1,18 @@
 """
 *****************************************************
+* Author: Mümin Emir Soydal                         *
+* Date: 01.07.2026                                  *
+* Version: 7.0.0                                    *
+* Branch: main                                      *
+* Development:                                      *
+* - Replaced custom BNN implementation with         *
+*   Bayesian-Torch library (head-only               *
+*   Reparameterization layers, ELBO training,       *
+*   posterior-sampling inference).                  *
+*****************************************************
+"""
+"""
+*****************************************************
 * Author: Fuat Işıklan                              *
 * Date: 30.06.2026                                  *
 * Version: 6.0.1                                    *

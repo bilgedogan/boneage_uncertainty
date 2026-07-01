@@ -87,7 +87,7 @@ python train.py --backbone convnextv2_tiny --seed 0 --quick-test
 ### Run BNN with Uncertainty Quantification
 
 ```bash
-cd bnn && bash run_bnn.sh --backbone efficientnet_b3 --n-passes 60
+bash bnn/run_bnn.sh --backbone efficientnet_b3 --n-passes 60 --gpu 0
 ```
 
 ## Output Structure
@@ -104,14 +104,13 @@ OUTPUT_DIR/
         ├── test_predictions_<TS>.csv         # Test set predictions
         └── test_metrics_<TS>.csv             # Test set metrics
 
-bnn/results/
+OUTPUT_DIR/bnn/
 └── <backbone>/
-    └── seed<N>_<timestamp>/
-        ├── best_model.pth                    # Best checkpoint
-        ├── history.pkl                       # Per-epoch losses (including KL)
-        ├── val_predictions_<TS>.csv          # Val set: true vs predicted mean age
-        ├── val_uq_predictions_<TS>.csv       # Val UQ predictions (mean, std, intervals)
-        └── val_uq_metrics_<TS>.csv           # Val UQ metrics (PICP, MPIW, etc.)
+    └── seed<N>/
+        ├── best_bnn_model.pth                # Best checkpoint (lowest val MAE)
+        ├── history.pkl                       # Per-epoch loss, recon_loss, kl_loss, val_mae
+        ├── bnn_metrics.xlsx                  # MAE/RMSE/R2 + PICP/MPIW/PINAW/CWC @ 90/95/99
+        └── bnn_predictions.csv               # Per-sample pred_mean, pred_std, interval bounds
 ```
 
 ### `history.pkl`

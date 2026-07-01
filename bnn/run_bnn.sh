@@ -1,38 +1,43 @@
 #!/bin/bash
-# Runs BNN training and UQ evaluation for multiple seeds.
-# efficientnet_b3, vit_b_16, convnextv2_tiny
+# Train the Bayesian Neural Network (bayesian-torch) and run UQ inference
+# across all seeds for one backbone.
+#
+# Backbones: efficientnet_b3, vit_b_16, convnextv2_tiny
+#
+# Usage:
+#   bash bnn/run_bnn.sh --backbone efficientnet_b3 --n-passes 60 --gpu 0
+#   bash bnn/run_bnn.sh --backbone vit_b_16 --quick-test --gpu 1
 
 BACKBONE="efficientnet_b3"
 SEEDS=(0 1 2 3 4 5 6 7 8 9)
 N_PASSES=60
-PRIOR_SIGMA=1.0
-GPU_ID="0"
 COVERAGE=[0.90,0.95,0.99]
-
+GPU_ID="0"
 QUICK_TEST=0
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --quick-test) QUICK_TEST=1; shift ;;
         --backbone)   BACKBONE="$2"; shift 2 ;;
         --n-passes)   N_PASSES="$2"; shift 2 ;;
-        --prior-sigma) PRIOR_SIGMA="$2"; shift 2 ;;
-        --gpu)        GPU_ID="$2"; shift 2 ;;
         --coverage)   COVERAGE="$2"; shift 2 ;;
+        --gpu)        GPU_ID="$2"; shift 2 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
 done
 
-# Set the GPU for this execution
-export CUDA_VISIBLE_DEVICES=$GPU_ID
-
+# Run from the project root so a relative .env (DATA_DIR/OUTPUT_DIR) is picked up.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TRAIN_SCRIPT="$SCRIPT_DIR/train.py"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT" || exit 1
+
+export CUDA_VISIBLE_DEVICES="$GPU_ID"
 
 for SEED in "${SEEDS[@]}"; do
     echo ""
-    echo "=== GPU=$GPU_ID backbone=$BACKBONE seed=$SEED passes=$N_PASSES prior_sigma=$PRIOR_SIGMA coverage=$COVERAGE ==="
+    echo "=== BNN backbone=$BACKBONE seed=$SEED passes=$N_PASSES coverage=$COVERAGE gpu=$GPU_ID ==="
 
-    PYTHON_CMD="python $TRAIN_SCRIPT --seed $SEED --backbone $BACKBONE --n-passes $N_PASSES --prior-sigma $PRIOR_SIGMA --coverage $COVERAGE"
+    PYTHON_CMD="python bnn/bnn.py --seed $SEED --backbone $BACKBONE --n-passes $N_PASSES --coverage $COVERAGE"
     if [ "$QUICK_TEST" -eq 1 ]; then
         PYTHON_CMD="$PYTHON_CMD --quick-test"
     fi
@@ -46,8 +51,4 @@ for SEED in "${SEEDS[@]}"; do
 done
 
 echo ""
-echo "Aggregating results for backbone=$BACKBONE..."
-python "$SCRIPT_DIR/aggregate_results.py" --backbone "$BACKBONE" --split test
-
-echo ""
-echo "All BNN runs completed for backbone=$BACKBONE."
+echo "Done. Results in outputs/bnn/$BACKBONE/seed*/"
