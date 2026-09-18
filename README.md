@@ -1,3 +1,8 @@
+Our paper has been accepted for publication at the **MICCAI 2026 UNSURE Workshop**!
+
+You can find the accepted camera-ready version of our paper here:
+📄 [UNSURE 2026 Paper](./Unsure2026_77.pdf)
+
 # RSNA Pediatric Bone Age Estimation
 
 Multi-input regression model for pediatric bone age estimation. Supports multiple backbones and reproducible seed-based experiments.
